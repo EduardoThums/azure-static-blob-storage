@@ -1,18 +1,10 @@
-import { Routes } from '@generouted/react-router'
-import ReactDOM from 'react-dom/client'
+import { StrictMode } from 'react'
+import { createRoot } from 'react-dom/client'
+import './index.css'
+import App from './App.tsx'
 
-import { GlobalProviders } from './contexts/GlobalProviders'
-
-import './styles/globals.css'
-
-const app = document.getElementById('root')
-
-if (!app) {
-  throw new Error('App not found')
-}
-
-ReactDOM.createRoot(app).render(
-  <GlobalProviders>
-    <Routes />
-  </GlobalProviders>,
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
+    <App />
+  </StrictMode>,
 )
