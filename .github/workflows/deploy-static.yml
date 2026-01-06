@@ -1,0 +1,59 @@
+name: Deploy Static Site to Azure Blob Storage
+
+on:
+  workflow_dispatch:
+
+jobs:
+  determine-environment:
+    runs-on: ubuntu-latest
+    outputs:
+      environment: ${{ steps.set-env.outputs.environment }}
+    steps:
+      - name: Set environment
+        id: set-env
+        run: |
+          if [ "$GITHUB_REF" == "refs/heads/main" ]; then
+            ENVIRONMENT=production
+          elif [ "$GITHUB_REF" == "refs/heads/stage" ]; then
+            ENVIRONMENT=stage
+          else
+            echo "Error: This workflow can only be run from main or stage branches"
+            exit 1
+          fi
+          echo "environment=$ENVIRONMENT" >> $GITHUB_OUTPUT
+
+  deploy:
+    needs: determine-environment
+    runs-on: ubuntu-latest
+    environment: ${{ needs.determine-environment.outputs.environment }}
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+
+      - name: Install dependencies
+        run: npm ci  # Use ci for faster, reliable installs
+
+      - name: Build application
+        run: npm run build:production
+
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.azure_client_id }}
+          tenant-id: ${{ secrets.azure_tenant_id }}
+          subscription-id: ${{ secrets.azure_subscription_id }}
+
+      - name: Upload to Azure Blob Storage
+        uses: azure/storage-blob-upload@v1
+        with:
+          storage-account-name: ${{ vars.AZURE_STORAGE_ACCOUNT }}
+          container-name: ${{ vars.AZURE_STORAGE_CONTAINER }}
+          source-dir: dist/
