@@ -1,0 +1,66 @@
+stages:
+  - quality 
+  - build
+  - deploy
+
+cache:
+  key: ${CI_COMMIT_REF_SLUG}
+  paths:
+    - node_modules/
+
+variables:
+  AWS_PROFILE: tccc
+  S3_BUCKET: stacks-react-init-vite-react
+  CLOUDFRONT_DISTRIBUTION_ID: E3JWSSTLKJ2I2K
+
+quality: 
+  stage: quality
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: on_success
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      when: on_success
+  script:
+    - nvm use
+    - npm ci
+    - npm run lint
+    - npm run build:production
+
+build:
+  stage: build
+  only: [main]
+  needs:
+    - quality
+  script:
+    - nvm use
+    - npm ci
+    - npm run build:production
+    - tar -czf dist.tar.gz dist/
+  artifacts:
+    when: on_success
+    paths:
+      - ./dist.tar.gz
+    expire_in: 1 week
+
+deploy:
+  stage: deploy
+  script:
+    - tar -xf dist.tar.gz
+    - aws --profile "$AWS_PROFILE" s3 cp --recursive dist s3://$S3_BUCKET
+    - aws cloudfront create-invalidation --profile "$AWS_PROFILE" --distribution-id "$CLOUDFRONT_DISTRIBUTION_ID" --paths '/*' > invalidation.json
+    - aws cloudfront wait invalidation-completed --profile "$AWS_PROFILE" --distribution-id "$CLOUDFRONT_DISTRIBUTION_ID" --id "$(jq -r '.Invalidation.Id' invalidation.json)"
+  when: manual
+  dependencies:
+    - build
+  needs:
+    - build
+
+invalidate:
+  stage: deploy
+  script:
+    - aws cloudfront create-invalidation --profile "$AWS_PROFILE" --distribution-id "$CLOUDFRONT_DISTRIBUTION_ID" --paths '/*' > invalidation.json
+    - aws cloudfront wait invalidation-completed --profile "$AWS_PROFILE" --distribution-id "$CLOUDFRONT_DISTRIBUTION_ID" --id "$(jq -r '.Invalidation.Id' invalidation.json)"
+  when: manual
+  dependencies: []
+  needs:
+    - build
