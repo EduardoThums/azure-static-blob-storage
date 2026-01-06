@@ -42,7 +42,7 @@ jobs:
         run: npm ci  # Use ci for faster, reliable installs
 
       - name: Build application
-        run: npm run build:production
+        run: npm run build
 
       - name: Login to Azure
         uses: azure/login@v2
