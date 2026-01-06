@@ -51,9 +51,16 @@ jobs:
           tenant-id: ${{ secrets.azure_tenant_id }}
           subscription-id: ${{ secrets.azure_subscription_id }}
 
-      - name: Upload to Azure Blob Storage
-        uses: azure/storage-blob-upload@v1
+      - name: Upload to blob storage
+        uses: azure/CLI@v1
         with:
-          storage-account-name: ${{ vars.AZURE_STORAGE_ACCOUNT }}
-          container-name: ${{ vars.AZURE_STORAGE_CONTAINER }}
-          source-dir: dist/
+          inlineScript: |
+              az storage blob upload-batch --account-name ${{ vars.AZURE_STORAGE_ACCOUNT }} --auth-mode key -d '${{ vars.AZURE_STORAGE_CONTAINER }}' -s ./dist
+
+
+      # - name: Upload to Azure Blob Storage
+      #   uses: azure/storage-blob-upload@v1
+      #   with:
+      #     storage-account-name: 
+      #     container-name: 
+      #     source-dir: dist/
